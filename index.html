@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>10letterwoord</title>
+	<link rel="stylesheet" href="style.css" />
+	
+	<meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link rel="apple-touch-icon" href="icons/icon-192b.png">
+    <link rel="manifest" href="manifest.json">
+	
+</head>
+
+<body>
+ 
+<main class="container">
+	<h2 style="margin:0px">10letterwoord</h2>
+	
+	<div class="game-wrapper">
+		<div class="toolbar">						
+				<span id="lev1" class="tooltekst">Nieuw <br> woord</span>
+				<span id="lev2" class="tooltekst">Nieuw <br> spel</span>
+				<span id="lev3" class="tooltekst">Oplossing</span>		
+				<span id="lev2" class="tooltekst">Taal</span>
+				<span id="lev3" class="tooltekst">Info</span>						
+		</div>
+
+		<div class="toolbar2">	
+		
+				<button id="jokerBtn">
+					<img src="images/joker.png" alt="Joker"></button>
+
+				<button id="newGameBtn">
+					<img src="images/new.png" alt="Nieuw"></button>
+
+				<button id="solutionBtn">
+					<img src="images/oog.png" alt="Oplossing"></button>
+
+				<button id="langBtn">
+					<img src="images/NL.png" alt="Taal"></button>
+
+				<button id="readmeBtn">
+					<img src="images/info.png" alt="Info"></button>
+		
+		</div>
+		<div id="messageBar" >
+			<div id="messageText" ;>Hoe speel je dit? → Klik op info.</div>
+			<div id="messageExtra"></div>
+		</div>
+		<div id="toolbar3" ;>
+			<div><span id="Faults">Strafpt'n: 0</span></div>
+			<div><span id="Topscore">Topscore: 0</span></div>
+			<div><span id="Timer">T: 00:00</span></div>
+		</div>
+
+	    <div id="grid">
+			<div id="cell"></div>
+		</div>
+		<div id="board"></div>		
+	
+	<div class="toolbar4">
+			<img src="images/logoFS.png" alt="FS Creations">
+			<h6 style="font-weight: normal; font-style:italic; margin: 0px;"> © 2026 FS creations. All rights reserved. Not for commercial use.</h6>
+		</div>	
+ 		
+	</div>
+</main>
+
+<canvas id="fireworksCanvas" class="hidden"></canvas>
+
+
+<!-- Modal -->
+<div id="modal" class="hidden">
+    <div id="modalContent">
+	
+		<h6>V1.1</h6>
+		<button id="modalClose" style="margin:10px";><img src="images/sluiten.png" alt="close"></button>	
+        <div id="modalBody"></div>
+		<img style="height: 30px;" src="images/logoFS.png" alt="FS Creations">		
+    </div>
+</div>
+
+<script src="10letter.js?v=20260306"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/letterswap/serviceworker.js");
+  }
+</script>
+
+</body>
+</html>

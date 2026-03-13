@@ -1,0 +1,21 @@
+{
+  "name": "Letterswap",
+  "short_name": "Letterswap",
+  "start_url": "/letterwissel/index.html",
+  "scope": "/letterswap/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4CAF50",
+  "icons": [
+    {
+      "src": "icons/icon-192b.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512b.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

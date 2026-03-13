@@ -1,0 +1,331 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #E2F2F2;
+  display: flex;
+  flex-direction: column;
+}
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+.game-wrapper {
+    display: flex;
+    flex-direction: column;
+    margin-top: 2px;
+    margin-bottom: 2px;
+	border: 1px solid red;
+	border-radius: 10px;
+}
+.toolbar {							/* toolbar1    labels */
+	display: flex;
+	gap: 8px 4px;
+	justify-content: space-between;
+	padding-left : 30px;
+	padding-right : 40px;
+}
+
+.tooltekst {					/* toolbar1 buttons */
+    margin: 5px;
+	height: 40px;
+    font-size: 13px;	
+	border-radius:6px;
+	background: transparent;
+   	color: black;
+}
+
+.toolbar2 {							   /*  iconbar   */
+	width:100%;
+	padding; 15px;
+	display: flex;
+	justify-content: center; 
+	padding-top: 20px;
+	gap: 25px;
+	height: 50px; 
+	background: rgba(0, 255, 0, 0.2);
+}
+
+.toolbar2 button {						/* toolbar2 btn's  */
+  display: flex; 
+  justify-content: center;
+  height: 28px;
+  border: 0px;
+  background-color: transparent;
+}
+
+.toolbar2 button:hover { 
+	transform: scale(1.15); 
+	opacity: 0.8;
+}
+
+#messageBar {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+    padding-left: 10px;
+	padding-right: 10px;
+    border: 2px solid #FFCC80;   
+}
+
+#message.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#messageText {
+    height: 40px;
+	white-space: nowrap;  
+    display: flex;
+	font-weight: 600;
+    align-items: center;
+}
+
+/* De container voor extra knoppen */
+#messageExtra {
+  display: flex;
+  gap: 10px;                 /* afstand tussen JA en NEE */
+  justify-content: flex-end; /* rechts uitlijnen */
+  max-width: 120px;          /* DIT is de fix */
+}
+
+#confirmYes {
+  background: #2ecc71;
+  color: white;
+  padding: 2px 14px;
+  border-radius: 6px;
+  border: none;
+  font-size: 1em;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#confirmNo {
+  background: #e74c3c;
+  color: white;
+  padding: 2px 14px;
+  border-radius: 6px;
+  border: none;
+  font-size: 1em;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Taalvlaggen */
+.lang-select {
+  display: flex;
+  gap: 10px;
+}
+
+.lang-select button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lang-select img {
+  width: 35px;
+  height: 35px;
+}
+
+.lang-select button:hover {
+  transform: scale(1.15);
+}
+#toolbar3 {									/*   stats   */
+	display: flex;
+	justify-content: space-between; 
+	font-size: 12px;
+	line-height: 1.0;
+	margin: 5px 15px 5px 15px;
+}
+#grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    margin: 10px;
+    background-color: lightblue;
+    border-radius: 8px;
+}
+.grid {
+    width: 100%;
+    max-width: 340px; /* of 320px, 360px, wat jij wil */
+    margin: 0 auto;
+    display: grid;
+    gap: 4px;
+}
+
+.grid > div {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+}
+
+
+.grid-row {
+    display: grid;
+    grid-template-columns: repeat(10, 31px);
+    gap: 3px;
+}
+
+.cell {
+    background-color: #FFFFFF;
+	border: 1px solid green;
+	border-radius: 8px;
+	height: 31px;
+	font-size: 15px;
+	color: black;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+}
+.cell.hint {
+    color: #00aa00;
+    font-weight: bold;
+    background: white;
+    border-color: #00aa00;
+}
+
+
+.cell.selected {
+    background: #fdef6C;
+    border-color: #0077ff;
+}
+
+.cell.fullgreen {
+    background: white;   /* volledig groen */
+    color: #00aa00;
+    border-color: #008800;
+}
+
+.cell.green {
+    color: #00aa00;
+    font-weight: bold;
+    background: #fdef6C; 
+    border-color: #00aa00;
+}
+.cell.red {
+    color: #cc0000;
+    font-weight: bold;
+	background: white; /* of je standaardkleur */
+    border-color: #00aa00;
+}
+
+.flag-row {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.flag {
+    width: 48px;
+    cursor: pointer;
+    transition: transform .2s;
+}
+
+.flag:hover {
+    transform: scale(1.15);
+}
+
+#board {
+	display: flex;
+	flex-direction: column;
+    gap: 4px;
+	font-size: 16px;
+	font-weight: 600;
+	min-Height: 250px;
+    margin: 10px;
+	padding-left:10px;
+	background-color :lightblue;
+	border-radius:8px;
+}
+
+.board-word.green {
+    color: #00aa00;
+    font-weight: bold;
+}
+
+.board-word.red {
+    color: #cc0000;
+    font-weight: bold;
+}
+
+.toolbar4 {										/* LogoFS   */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+	margin: 20px;
+	padding-top: 5px;
+    justify-content: center;
+}
+.tile.correct {
+    background-color: #4CAF50;
+    color: white;
+}
+
+
+#modal {
+    position: fixed;
+    inset: 0;
+	background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#modal.hidden {
+    display: none;
+}
+
+#modalContent {
+    position: relative;   /* BELANGRIJK */
+    background: white;
+    padding: 25px;
+    width: 90%;
+    max-width: 350px;
+    border-radius: 10px;
+    text-align: left;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+#modalClose {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 22px;
+    cursor: pointer;
+    color: #333;
+    background: none;
+    border: none;
+}
+
+.close {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+#fireworksCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 9999;
+    background: rgba(0,0,0,0.95); /* donkere achtergrond */
+}
+
+#fireworksCanvas.hidden {
+    display: none;
+}
