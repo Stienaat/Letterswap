@@ -22,7 +22,7 @@ const FILES_TO_CACHE = [
   "/Letterswap/images/NL.png",
   "/Letterswap/images/oog.png",
   "/Letterswap/images/sluiten.png",
-  "/Letterswap/images/taal.png"
+  "/Letterswap/images/taal.png",
 ];
 
 self.addEventListener("install", event => {
