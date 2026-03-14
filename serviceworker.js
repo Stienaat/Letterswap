@@ -1,28 +1,28 @@
 const CACHE_NAME = "Letterswap-v1";
 
 const FILES_TO_CACHE = [
-  "/Letterswap/",
-  "/Letterswap/index.html",
-  "/Letterswap/style.css",
-  "/Letterswap/10letter.js",
-  "/Letterswap/i18n.js",
-  "/Letterswap/woorden.txt",
-  "/Letterswap/woorden_de.txt",
-  "/Letterswap/woorden_fr.txt",
-  "/Letterswap/woorden_en.txt",
-  "/Letterswap/manifest.json",
-  "/Letterswap/icons/icon-192b.png",
-  "/Letterswap/icons/icon-512b.png",
-  "/Letterswap/images/DE.png",
-  "/Letterswap/images/EN.png",
-  "/Letterswap/images/FR.png",
-  "/Letterswap/images/info.png",
-  "/Letterswap/images/logoFS.png",
-  "/Letterswap/images/new.png",
-  "/Letterswap/images/NL.png",
-  "/Letterswap/images/oog.png",
-  "/Letterswap/images/sluiten.png",
-  "/Letterswap/images/taal.png",
+  "./",
+  "./index.html",
+  "./style.css",
+  "./10letter.js",
+  "./i18n.js",
+  "./woorden.txt",
+  "./woorden_de.txt",
+  "./woorden_fr.txt",
+  "./woorden_en.txt",
+  "./manifest.json",
+  "./icons/icon-192b.png",
+  "./icons/icon-512b.png",
+  "./images/DE.png",
+  "./images/EN.png",
+  "./images/FR.png",
+  "./images/info.png",
+  "./images/logoFS.png",
+  "./images/new.png",
+  "./images/NL.png",
+  "./images/oog.png",
+  "./images/sluiten.png",
+  "./images/taal.png"
 ];
 
 self.addEventListener("install", event => {
@@ -36,9 +36,7 @@ self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys
-          .filter(k => k !== CACHE_NAME)
-          .map(k => caches.delete(k))
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       )
     )
   );
@@ -48,12 +46,7 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(event.request).then(cached => {
-      return (
-        cached ||
-        fetch(event.request).then(response => {
-          return response;
-        })
-      );
+      return cached || fetch(event.request);
     })
   );
 });
