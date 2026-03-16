@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>10letterwoord</title>
+	<title>Letterswap</title>
 	<link rel="stylesheet" href="style.css" />
 	
 	<meta name="theme-color" content="#4CAF50">
@@ -19,15 +19,15 @@
 <body>
  
 <main class="container">
-	<h2 style="margin:0px">10letterwoord</h2>
+	<h2 style="margin:0px">Letterswap</h2>
 	
 	<div class="game-wrapper">
 		<div class="toolbar">						
 				<span id="lev1" class="tooltekst">Nieuw <br> woord</span>
 				<span id="lev2" class="tooltekst">Nieuw <br> spel</span>
 				<span id="lev3" class="tooltekst">Oplossing</span>		
-				<span id="lev2" class="tooltekst">Taal</span>
-				<span id="lev3" class="tooltekst">Info</span>						
+				<span id="lev4" class="tooltekst">Taal</span>
+				<span id="lev5" class="tooltekst">Info</span>						
 		</div>
 
 		<div class="toolbar2">	
@@ -73,22 +73,22 @@
 
 <canvas id="fireworksCanvas" class="hidden"></canvas>
 
-
 <!-- Modal -->
 <div id="modal" class="hidden">
     <div id="modalContent">
 	
-		<h6>V1.1</h6>
+		<h6>V1.0</h6>
 		<button id="modalClose" style="margin:10px";><img src="images/sluiten.png" alt="close"></button>	
         <div id="modalBody"></div>
 		<img style="height: 30px;" src="images/logoFS.png" alt="FS Creations">		
     </div>
 </div>
 
-<script src="10letter.js?v=20260306"></script>
+<script src="strings.js"></script>
+<script src="10letter.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("Letterswap/serviceworker.js");
+    navigator.serviceWorker.register("./serviceworker.js");
   }
 </script>
 

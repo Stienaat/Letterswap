@@ -65,6 +65,7 @@ body {
 #messageBar {
     display: flex;
     justify-content: space-between;
+	height:40px;
     gap: 8px;
     flex-shrink: 0;
     padding-left: 10px;
@@ -78,19 +79,20 @@ body {
 }
 
 #messageText {
-    height: 40px;
+  
 	white-space: nowrap;  
     display: flex;
-	font-weight: 600;
+	font-weight: 500;
     align-items: center;
 }
 
-/* De container voor extra knoppen */
-#messageExtra {
+#messageExtra {				/* De container voor extra knoppen */
   display: flex;
   gap: 10px;                 /* afstand tussen JA en NEE */
   justify-content: flex-end; /* rechts uitlijnen */
   max-width: 120px;          /* DIT is de fix */
+  align-items: center;
+
 }
 
 #confirmYes {
@@ -128,8 +130,8 @@ body {
 }
 
 .lang-select img {
-  width: 35px;
-  height: 35px;
+  width: 25px;
+  height: 25px;
 }
 
 .lang-select button:hover {
@@ -286,11 +288,12 @@ body {
 }
 
 #modalContent {
+	font-size: 12px;
     position: relative;   /* BELANGRIJK */
     background: white;
     padding: 25px;
     width: 90%;
-    max-width: 350px;
+    max-width: 300px;
     border-radius: 10px;
     text-align: left;
     animation: fadeIn 0.2s ease-in-out;
@@ -313,6 +316,23 @@ body {
     top: 15px;
     font-size: 22px;
     cursor: pointer;
+}
+.msgBtnYes, .msgBtnNo {
+    padding: 4px 10px;
+    margin-left: 8px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+.msgBtnYes {
+    background: #4CAF50;
+    color: white;
+}
+
+.msgBtnNo {
+    background: #d9534f;
+    color: white;
 }
 
 #fireworksCanvas {

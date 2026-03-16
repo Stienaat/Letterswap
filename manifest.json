@@ -2,7 +2,7 @@
   "name": "Letterswap",
   "short_name": "Letterswap",
   "start_url": "./index.html",
-  "scope": "/letterswap/",
+  "scope": "/Letterswap/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4CAF50",

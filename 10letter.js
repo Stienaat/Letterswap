@@ -29,8 +29,18 @@ let topScore = null; // laagste strafpunten ooit
 let woordIsCorrect = false;
 let hintCells = Array(WORD_LENGTH).fill(false);
 let longPressCount = 0;
-const MAX_LONGPRESSES = 3;
+const MAX_LONGPRESSES = 2;
 
+
+let currentLanguage = "nl";
+
+function getLang() {
+  return currentLanguage;
+}
+
+function t(key) {
+  return (window.strings?.translations?.[getLang()]?.[key]) || key;
+}
 
 /* ------------------------------------------------------------
    2. SHUFFLEBAG + SHUFFLE
@@ -75,7 +85,6 @@ function fisherYatesShuffle(arr) {
     return arr;
 }
 
-
 /* ------------------------------------------------------------
    3. LOAD WORDS
    ------------------------------------------------------------ */
@@ -92,39 +101,59 @@ async function laadWoorden() {
     bag = new ShuffleBagCooldown(woordPool, 10);
 }
 
+function kiesNieuwWoord() {
+    return bag.draw();
+}
 
 /* ------------------------------------------------------------
    4. START GAME / RONDES
    ------------------------------------------------------------ */
+function startRonde() {
+	
+    currentWord = kiesNieuwWoord();
+    solutionWord = currentWord.split("");
+
+    // FIX: reset hint state
+    hintCells = Array(WORD_LENGTH).fill(false);
+
+    grid = [
+        fisherYatesShuffle(solutionWord.slice()),
+        Array(WORD_LENGTH).fill("")
+    ];
+	startTimerIfNeeded()
+    renderGrid();
+}
 
 function startGame() {
+	startTimerIfNeeded()
     strafpunten = 0;
     seconden = 0;
     round = 1;
-
     updateStrafpunten();
     updateTimerDisplay();
     loadTopScore();
-
+	
+	  initToolbar();
     startRonde();
 }
-
-function startRonde() {
-	longPressCount = 0;
-    currentWord = bag.draw();
-    scrambled = fisherYatesShuffle(currentWord.split(""));
-
-    grid[0] = [...scrambled];
-    grid[1] = Array(WORD_LENGTH).fill("");
-
-    renderGrid();
-    startTimerIfNeeded();
-}
-
 
 /* ------------------------------------------------------------
    5. GRID RENDERING
    ------------------------------------------------------------ */
+function onLongPress(r, c) {
+		 
+    if (longPressCount >= MAX_LONGPRESSES) {
+		showMessage(t("hints"));
+    return;
+    }
+
+    longPressCount++;
+    strafpunten += 2;
+    updateStrafpunten();
+
+    // Jouw echte hintfunctie
+    geefHint(r, c);
+}
 
 function renderGrid() {
     const el = document.getElementById("grid");
@@ -141,55 +170,39 @@ function renderGrid() {
             cell.dataset.col = c;
             cell.textContent = grid[r][c];
 
-            // HINT KLEUR EN VASTZETTEN
-        if (r === 1 && hintCells[c] && grid[1][c] !== "") {
-		cell.classList.add("hint");
-		}
-
+            // HINT KLEUR
+            if (r === 1 && hintCells[c] && grid[1][c] !== "") {
+                cell.classList.add("hint");
+            }
 
             // LONGPRESS
-			
-function onLongPress(r, c) {
-    if (longPressCount >= MAX_LONGPRESSES) {
-        console.log("Max longpresses bereikt");
-        return;
-    }
+            let pressTimer = null;
 
-    longPressCount++;
+            cell.onmousedown = () => {
+                pressTimer = setTimeout(() => {
+                    onLongPress(r, c);
+                }, 600);
+            };
 
-    // Strafpunten voor longpress
-    strafpunten += 2;
-    updateStrafpunten();
+            cell.onmouseup = () => {
+                clearTimeout(pressTimer);
+            };
 
-    console.log("Longpress:", longPressCount);
-
-    // Jouw echte hintfunctie
-    geefHint(r, c);
-}
-
-
-			
-			
-        let pressTimer;
-        cell.addEventListener("mousedown", () => {
-		pressTimer = setTimeout(() => {
-			onLongPress(r, c);
-		}, 600);
-
-        });
-        cell.addEventListener("mouseup", () => clearTimeout(pressTimer));
-        cell.addEventListener("mouseleave", () => clearTimeout(pressTimer));
+            cell.onmouseleave = () => {
+                clearTimeout(pressTimer);
+            };
 
             // CLICK (swap)
-        cell.addEventListener("click", () => handleCellClick(r, c));
-
-        row.appendChild(cell);
-     }
+            cell.onclick = () => {
+                handleCellClick(r, c);
+            };
+			clearMessage()
+            row.appendChild(cell);
+        }
 
         el.appendChild(row);
-   }
+    }
 }
-
 
 /* ------------------------------------------------------------
    6. SWAP LOGICA
@@ -233,18 +246,15 @@ function swap(r1, c1, r2, c2) {
 
 function checkSolved() {
     const bottom = grid[1].join("");
-
+	longPressCount = 0;
+	checkEindeSpel();
+	
     if (bottom === currentWord) {
-        markCorrect();
-        woordIsCorrect = true;
-
-        colorFullWordGreen();   // ← DIT is de juiste plek
-    } else {
-        woordIsCorrect = false;
+        addWordToBoard(currentWord, "green");
+		round++;
+        startRonde();
     }
 }
-
-
 
 function markCorrect() {
     const cells = document.querySelectorAll(".grid-row:nth-child(2) .cell");
@@ -252,13 +262,10 @@ function markCorrect() {
 }
 
 function nieuwWoord() {
-	
-    if (woordIsCorrect) {
-        addWordToBoard(currentWord, "green");
-    } else {
+    longPressCount = 0;
+  
         strafpunten += 5;
         updateStrafpunten();
-    }
 
     woordIsCorrect = false;
     startRonde();
@@ -266,55 +273,102 @@ function nieuwWoord() {
 
 
 
+
+/* =========================
+   8. MESSAGE / MODAL UI
+   ========================= */
+   
+function showMessage(text, extraHTML = "") {
+  const bar = document.getElementById("messageBar");
+  const msg = document.getElementById("messageText");
+  const extra = document.getElementById("messageExtra");
+
+  bar.style.display = "flex";
+  msg.textContent = text;
+  extra.innerHTML = extraHTML;
+}
+
+function clearMessage() {
+  showMessage(t("defaultMessage"));
+}
+
 function nieuwSpel() {
+	showMessage(
+	  t("confirmNewGame"),
+	  `
+		<div class="confirm-box">
+			<button class="msgBtnYes" onclick="startNewGame()">${t("confirmYes")}</button>
+            <button class="msgBtnNo" onclick="clearMessage()">${t("confirmNo")}</button>
+		</div>
+	  `
+	);
+}
+
+function startNewGame() {
+	longPressCount = 0;
     clearInterval(timerInterval);
     timerGestart = false;
-
-    strafpunten = 0;
+	strafpunten = 0;
     seconden = 0;
     round = 1;
     woordIsCorrect = false;
-
-    document.getElementById("board").innerHTML = "";
-
-    updateStrafpunten();
-    updateTimerDisplay();
-
-    startRonde();
+    clearMessage();
+    startGame();   // of hoe jouw spel start
 }
 
-function toonOplossing() {
-    strafpunten += 10;
-    updateStrafpunten();
+function initToolbar() {
+ const buttons = document.querySelectorAll("#toolbar button[data-level]");
 
-    grid[1] = currentWord.split("");
-    renderGrid();
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const newLevel = Number(btn.dataset.level);
+      if (level === newLevel) return;
 
-    // letters rood maken
-    const cells = document.querySelectorAll(".grid-row:nth-child(2) .cell");
-    cells.forEach(c => c.classList.add("red"));
 
-    addWordToBoard(currentWord, "red");
-    woordIsCorrect = false; // want dit is geen correcte oplossing
+
+document.getElementById("confirmYes").onclick = () => {
+    level = newLevel;
+
+    buttons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    updatetopScoreDisplay();
+    maakGrid();
+
+	showMessage(t("defaultMessage"));
+};
+
+document.getElementById("confirmNo").onclick = clearMessage;
+    });
+  });
 }
 
-function openTaalKeuze() {
-    showModal(`
-        <h2>Kies je taal</h2>
-        <div class="flag-row">
-            <img src="img/nl.png" class="flag" onclick="setLanguage('nl')">
-            <img src="img/en.png" class="flag" onclick="setLanguage('en')">
-            <img src="img/fr.png" class="flag" onclick="setLanguage('fr')">
-        </div>
-    `);
+
+
+
+
+/*  MODAL   */
+
+document.getElementById("readmeBtn").addEventListener("click", () => {
+    openModal(`
+		<h4>${t("modalInfoTitle")}</h4>
+		<div>${t("modalInfoBody")}</div>
+	`);
+});
+
+function openModal(contentHTML) {
+	document.getElementById("modalBody").innerHTML = contentHTML;
+	document.getElementById("modal").classList.remove("hidden");
 }
 
-function openReadme() {
-    showModal(`
-        <h2>${t("uitleg_titel")}</h2>
-        <p>${t("uitleg_tekst")}</p>
-    `);
+function closeModal() {
+  document.getElementById("modal").classList.add("hidden");
 }
+
+
+/* =========================
+   8.1 HINT / 
+   ========================= */
 
 function geefHint(r, c) {
     const letter = grid[r][c];
@@ -355,37 +409,8 @@ function geefHint(r, c) {
     renderGrid();
 }
 
-function allWordsFound() {
-    return words.every(w => w.found === true);
-}
-function colorFullWordGreen() {
-    document.querySelectorAll('#grid .cell').forEach(tile => {
-        tile.classList.add('fullgreen');
-    });
-}
-
-function onWordFound(word) {
-    word.found = true;
-    highlightWord(word);
-
-    if (allWordsFound()) {
-        colorFullWordGreen();
-    }
-}
-
-
-
-
-
-document.getElementById("jokerBtn").addEventListener("click", nieuwWoord);
-document.getElementById("newGameBtn").addEventListener("click", nieuwSpel);
-document.getElementById("solutionBtn").addEventListener("click", toonOplossing);
-document.getElementById("langBtn").addEventListener("click", openTaalKeuze);
-document.getElementById("readmeBtn").addEventListener("click", openReadme);
-
-
 /* ------------------------------------------------------------
-   8. BOARD
+   9. BOARD
    ------------------------------------------------------------ */
 
 function addWordToBoard(word, color = "green") {
@@ -398,8 +423,17 @@ function addWordToBoard(word, color = "green") {
 
 
 /* ------------------------------------------------------------
-   9. TIMER
+   10. TIMER
    ------------------------------------------------------------ */
+function startTimer() {
+  seconden = 0;
+  clearInterval(timerInterval);
+
+  timerInterval = setInterval(() => {
+    seconden++;
+    updateTimer();
+  }, 1000);
+}
 
 function startTimerIfNeeded() {
     if (timerGestart) return;
@@ -421,37 +455,52 @@ function updateTimerDisplay() {
         String(sec).padStart(2, "0");
 }
 
+/* =========================
+   11. TAAL
+   ========================= */
 
+function openTaalKeuze() {
+	showMessage(
+    t("language"),
+    `
+      <div class="lang-select">
+        <button data-lang="nl"><img src="images/NL.png" alt="NL"></button>
+        <button data-lang="fr"><img src="images/FR.png" alt="FR"></button>
+        <button data-lang="en"><img src="images/EN.png" alt="EN"></button>
+        <button data-lang="de"><img src="images/DE.png" alt="DE"></button>
+      </div>    `
+  );
+
+  document.querySelectorAll(".lang-select button").forEach(btn => {
+    btn.onclick = async () => {
+      await switchLanguage(btn.dataset.lang);
+      clearMessage();
+    };
+  });
+}
+
+async function switchLanguage(langCode) {
+  strings.setLanguage(langCode);
+
+  const img = document.querySelector("#langBtn img");
+  if (img) img.src = `images/${langCode.toUpperCase()}.png`;
+
+  woordenBestand = langCode === "nl" ? "woorden.txt" : `woorden_${langCode}.txt`;
+
+  await laadWoorden();
+  woordBag = new ShuffleBagCooldown(woordPool, 5);
+  renderGrid();
+  clearMessage();
+  
+}
 /* ------------------------------------------------------------
-   10. STRAFPUNTEN
+   12. STRAFPUNTEN / SCORE
    ------------------------------------------------------------ */
 
 function updateStrafpunten() {
     document.getElementById("Faults").textContent =
-        "Strafpt'n: " + strafpunten;
+        "Score: " + strafpunten;
 }
-
-
-/* ------------------------------------------------------------
-   11. JOKER & OPLOSSING
-   ------------------------------------------------------------ */
-
-function joker() {
-    strafpunten += 5;
-    updateStrafpunten();
-    addWordToBoard(currentWord, "green"); 
-}
-
-function toonOplossing() {
-    strafpunten += 10;
-    updateStrafpunten();
-    addWordToBoard(currentWord, "red");
-}
-
-
-/* ------------------------------------------------------------
-   12. TOPSCORE (optie A)
-   ------------------------------------------------------------ */
 
 function loadTopScore() {
     const saved = localStorage.getItem("10letter_topscore");
@@ -479,10 +528,71 @@ function updateTopScoreIfNeeded() {
     }
 }
 
+/* ------------------------------------------------------------
+   13. JOKER & OPLOSSING
+   ------------------------------------------------------------ */
+
+function joker() {
+    strafpunten += 5;
+    updateStrafpunten();
+	longPressCount = 0;
+
+}
+function toonOplossing() {
+    strafpunten += 10;
+    updateStrafpunten();
+	longPressCount = 0;
+	round++;
+	checkEindeSpel();
+    addWordToBoard(currentWord, "red");
+
+    // FIX: zet het woord in cooldown
+    bag.cooldown.set(currentWord, bag.cooldownShuffles);
+
+    // FIX: forceer refill zodat draw() nieuwe woorden heeft
+    bag.refill();
+
+    woordIsCorrect = false;
+    startRonde();
+}
 
 /* ------------------------------------------------------------
-   13. EINDE SPEL
+   15. EINDE SPEL
    ------------------------------------------------------------ */
+
+/*   EINDE SPEL   */
+
+function checkEindeSpel() {
+    if (round > 10) {
+        endGame();
+    }
+}
+
+function colorFullWordGreen() {
+    document.querySelectorAll('#grid .cell').forEach(tile => {
+        tile.classList.add('fullgreen');
+    });
+}
+
+function onWordFound(word) {
+    word.found = true;
+    highlightWord(word);
+
+    if (allWordsFound()) {
+        colorFullWordGreen();
+    }
+}
+
+document.getElementById("jokerBtn").addEventListener("click", () => {nieuwWoord();});
+
+document.getElementById("newGameBtn").addEventListener("click", nieuwSpel); 
+
+document.getElementById("solutionBtn").addEventListener("click", toonOplossing);
+
+document.getElementById("langBtn").addEventListener("click", openTaalKeuze); 
+
+document.getElementById("modalClose").addEventListener("click", closeModal);
+
 
 function endGame() {
     clearInterval(timerInterval);
@@ -492,7 +602,7 @@ function endGame() {
 
 
 /* ------------------------------------------------------------
-   14. HIGHLIGHT HELPERS
+   16. HIGHLIGHT HELPERS
    ------------------------------------------------------------ */
 
 function highlight(r, c) {
@@ -505,41 +615,108 @@ function clearHighlights() {
 }
 
 /* =========================
-   . MESSAGE / MODAL UI
+   18. VUURWERK 
    ========================= */
 
-function showMessage(text, extraHTML = "") {
-  const bar = document.getElementById("messageBar");
-  const msg = document.getElementById("messageText");
-  const extra = document.getElementById("messageExtra");
+function startFireworks(done) {
+    const canvas = document.getElementById("fireworksCanvas");
+    const ctx = canvas.getContext("2d");
 
-  bar.style.display = "flex";
-  msg.textContent = text;
-  extra.innerHTML = extraHTML;
+    // Canvas zichtbaar maken
+    canvas.classList.remove("hidden");
+    canvas.style.display = "block";
+    canvas.style.background = "rgba(0,0,0,0.95)";
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let particles = [];
+    let running = true;
+
+    // --- HSL → RGBA converter (perfect werkend) ---
+    function hslToRgba(h, s, l, a) {
+        s /= 100;
+        l /= 100;
+
+        const k = n => (n + h / 30) % 12;
+        const f = n =>
+            l - s * Math.min(l, 1 - l) *
+            Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+
+        return `rgba(${Math.round(255 * f(0))}, ${Math.round(255 * f(8))}, ${Math.round(255 * f(4))}, ${a})`;
+    }
+
+    // --- Explosie maken ---
+    function createExplosion() {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height * 0.7;
+
+        for (let i = 0; i < 120; i++) {
+            particles.push({
+                x,
+                y,
+                angle: Math.random() * Math.PI * 2,
+                speed: Math.random() * 5 + 2,
+                alpha: 1,
+                radius: 2 + Math.random() * 3,
+                color: {
+                    h: Math.random() * 360,
+                    s: 100,
+                    l: 50 + Math.random() * 30
+                }
+            });
+        }
+    }
+
+    // --- Animatie ---
+    function update() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        particles = particles.filter(p => p.alpha > 0);
+
+        particles.forEach(p => {
+            p.x += Math.cos(p.angle) * p.speed;
+            p.y += Math.sin(p.angle) * p.speed;
+            p.alpha -= 0.015;
+
+            ctx.fillStyle = hslToRgba(p.color.h, p.color.s, p.color.l, p.alpha);
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        if (running) {
+            requestAnimationFrame(update);
+        } else {
+            // Canvas verbergen
+            canvas.classList.add("hidden");
+            canvas.style.display = "none";
+            canvas.style.background = "transparent";
+
+          if (done) done();
+        }
+    }
+
+    // --- Meerdere explosies ---
+    let count = 0;
+    const interval = setInterval(() => {
+        createExplosion();
+        count++;
+        if (count >= 8) {
+            clearInterval(interval);
+            setTimeout(() => running = false, 2000);
+        }
+    }, 300);
+
+    update();
 }
-
-function clearMessage() {
-  showMessage(t("defaultMessage"));
-}
-
-function openModal(contentHTML) {
-  document.getElementById("modalBody").innerHTML = contentHTML;
-  document.getElementById("modal").classList.remove("hidden");
-}
-
-function closeModal() {
-  document.getElementById("modal").classList.add("hidden");
-}
-
 /* ------------------------------------------------------------
-   15. INIT
+   19. INIT
    ------------------------------------------------------------ */
 
 window.addEventListener("DOMContentLoaded", async () => {
-    console.log("10letterwoord engine gestart…");
-
+ 
     await laadWoorden();
-    console.log("Woorden geladen:", woordPool.length);
 
     startGame();
 });
