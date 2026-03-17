@@ -4,7 +4,7 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>Letterswap</title>
-	<link rel="stylesheet" href="style.css" />
+	<link rel="stylesheet" href="lswap.css" />
 	
 	<meta name="theme-color" content="#4CAF50">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,22 +31,22 @@
 		</div>
 
 		<div class="toolbar2">	
-		
-				<button id="jokerBtn">
+			<div class="icons">
+				<button id="jokerBtn" class="icon-btn">
 					<img src="images/joker.png" alt="Joker"></button>
 
-				<button id="newGameBtn">
+				<button id="newGameBtn" class="icon-btn">
 					<img src="images/new.png" alt="Nieuw"></button>
 
-				<button id="solutionBtn">
+				<button id="solutionBtn" class="icon-btn">
 					<img src="images/oog.png" alt="Oplossing"></button>
 
-				<button id="langBtn">
+				<button id="langBtn" class="icon-btn">
 					<img src="images/NL.png" alt="Taal"></button>
 
-				<button id="readmeBtn">
+				<button id="readmeBtn" class="icon-btn">
 					<img src="images/info.png" alt="Info"></button>
-		
+			</div>
 		</div>
 		<div id="messageBar" >
 			<div id="messageText" ;>Hoe speel je dit? → Klik op info.</div>
@@ -85,7 +85,7 @@
 </div>
 
 <script src="strings.js"></script>
-<script src="10letter.js"></script>
+<script src="lswap.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");

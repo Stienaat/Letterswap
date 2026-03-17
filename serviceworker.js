@@ -3,8 +3,8 @@ const CACHE_NAME = "Letterswap-v1";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
-  "./style.css",
-  "./10letter.js",
+  "./lswap.css",
+  "./lswap.js",
   "./strings.js",
   "./woorden.txt",
   "./woorden_de.txt",
