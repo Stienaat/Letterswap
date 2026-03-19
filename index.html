@@ -13,7 +13,7 @@
 
     <link rel="apple-touch-icon" href="icons/icon-192b.png">
     <link rel="manifest" href="manifest.json">
-	
+	<script src="i18n.js"></script>
 </head>
 
 <body>
@@ -77,20 +77,37 @@
 <div id="modal" class="hidden">
     <div id="modalContent">
 	
-		<h6>V1.1</h6>
+		<img style="height: 30px;" src="images/logoFS.png" alt="FS Creations"><h6>V1.1</h6>
 		<button id="modalClose" style="margin:10px";><img src="images/sluiten.png" alt="close"></button>	
         <div id="modalBody"></div>
-		<img style="height: 30px;" src="images/logoFS.png" alt="FS Creations">		
+			
     </div>
 </div>
 
-<script src="strings.js"></script>
+
 <script src="lswap.js"></script>
 <script>
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");
   }
 </script>
+
+<div id="debugPanel" style="
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.75);
+    color: #0f0;
+    font-family: monospace;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    z-index: 9999;
+    display: none;
+">
+</div>
+
+
 
 </body>
 </html>

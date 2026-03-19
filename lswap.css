@@ -91,8 +91,8 @@ body {
   align-items: center;
   height: 40px;
   gap: 8px;
-  padding: 10px;
-  border: 2px solid #FFCC80;
+  padding: 5px;
+  border: 1px solid #FFCC80;
 }
 
 #message.hidden {
@@ -168,7 +168,7 @@ body {
   gap: 4px;
   justify-content: center;
   margin: 10px;
-  background-color: lightblue;
+
   border-radius: 8px;
 }
 
@@ -241,9 +241,9 @@ body {
   font-weight: 600;
   margin: 5px;
   padding-left: 10px;
-  background-color: lightblue;
+  border: 1px solid blue;
   border-radius: 8px;
-  min-height: 200px; 
+  min-height: 250px; 
 }
 
 .board-word.green { color: #00aa00; font-weight: bold; }

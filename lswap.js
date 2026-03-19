@@ -1,7 +1,3 @@
-/* ============================================================
-   10LETTERWOORD — COMPLETE ENGINE (1 BESTAND)
-   ============================================================ */
-
 /* ------------------------------------------------------------
    1. CONFIG & STATE
    ------------------------------------------------------------ */
@@ -9,37 +5,79 @@
 const WORD_LENGTH = 10;
 const TOTAL_ROUNDS = 10;
 
+let debugVisible = false;
+
+function toggleDebug() {
+    debugVisible = !debugVisible;
+    document.getElementById("debugPanel").style.display = debugVisible ? "block" : "none";
+    if (debugVisible) updateDebugPanel();
+}
+function updateDebugPanel() {
+    if (!debugVisible) return;
+
+    const panel = document.getElementById("debugPanel");
+
+    panel.innerHTML = `
+        <b>DEBUG</b><br>
+        round: ${round}<br>
+        strafpunten: ${strafpunten}<br>
+        seconden: ${seconden}<br>
+        timerGestart: ${timerGestart}<br>
+        longPressCount: ${longPressCount}<br>
+        topScore: ${topScore}<br>
+        currentWord: ${currentWord}<br>
+        gridTop: ${grid[0].join("")}<br>
+        gridBottom: ${grid[1].join("")}<br>
+        hints: ${hintCells.map(h => h ? "1" : "0").join("")}<br>
+        foundWords: ${foundWords.length}<br>
+    `;
+}
+
+
 let woordPool = [];
 let bag = null;
 
+let foundWords = [];
 let currentWord = "";
-let scrambled = [];
 let grid = [[], []]; // 2 rijen × 10 kolommen
 
 let round = 1;
 let strafpunten = 0;
 let seconden = 0;
+
 let timerGestart = false;
 let timerInterval = null;
+let minutePenaltyTimer = null;
 
 let selected = null;
-let score = 0;
+let score = 0; // niet gebruikt voor UI, maar laten staan voor toekomst
+let topScore = null; // laagste strafpunten ooit (globale topscore)
 
-let topScore = null; // laagste strafpunten ooit
 let woordIsCorrect = false;
 let hintCells = Array(WORD_LENGTH).fill(false);
 let longPressCount = 0;
 const MAX_LONGPRESSES = 2;
 
-
 let currentLanguage = "nl";
 
+let saveScheduled = false;
+
+function scheduleSave() {
+    if (saveScheduled) return;
+    saveScheduled = true;
+
+    setTimeout(() => {
+        saveGame();
+        saveScheduled = false;
+    }, 200);
+}
+
 function getLang() {
-  return currentLanguage;
+    return currentLanguage;
 }
 
 function t(key) {
-  return (window.strings?.translations?.[getLang()]?.[key]) || key;
+    return i18n.translations[i18n.currentLang][key] || key;
 }
 
 /* ------------------------------------------------------------
@@ -90,7 +128,10 @@ function fisherYatesShuffle(arr) {
    ------------------------------------------------------------ */
 
 async function laadWoorden() {
-    const res = await fetch("woorden.txt");
+    const lang = currentLanguage;
+    const bestand = lang === "nl" ? "woorden.txt" : `woorden_${lang}.txt`;
+
+    const res = await fetch(bestand);
     const text = await res.text();
 
     woordPool = text
@@ -108,50 +149,57 @@ function kiesNieuwWoord() {
 /* ------------------------------------------------------------
    4. START GAME / RONDES
    ------------------------------------------------------------ */
-function startRonde() {
-	
-    currentWord = kiesNieuwWoord();
-    solutionWord = currentWord.split("");
 
-    // FIX: reset hint state
+function startRonde() {
+    currentWord = kiesNieuwWoord();
+    const solutionWord = currentWord.split("");
+
     hintCells = Array(WORD_LENGTH).fill(false);
 
     grid = [
         fisherYatesShuffle(solutionWord.slice()),
         Array(WORD_LENGTH).fill("")
     ];
-	startTimerIfNeeded()
+
     renderGrid();
+    scheduleSave();
+	updateDebugPanel();
+
 }
 
 function startGame() {
-	startTimerIfNeeded()
-    strafpunten = 0;
-    seconden = 0;
-    round = 1;
-    updateStrafpunten();
-    updateTimerDisplay();
-    loadTopScore();
-	
-	  initToolbar();
-    startRonde();
+    const loaded = loadGame();
+    console.log("STARTGAME: loadGame returned", loaded);
+
+    if (!loaded) {
+        round = 1;
+        strafpunten = 0;
+        seconden = 0;
+        timerGestart = false;
+        clearInterval(timerInterval);
+        clearInterval(minutePenaltyTimer);
+        updateStrafpunten();
+        updateTimerDisplay();
+        updateTopScoreDisplay();
+        startRonde();
+    }
 }
 
 /* ------------------------------------------------------------
    5. GRID RENDERING
    ------------------------------------------------------------ */
+
 function onLongPress(r, c) {
-		 
     if (longPressCount >= MAX_LONGPRESSES) {
-		showMessage(t("hints"));
-    return;
+        showMessage(t("hints"));
+        return;
     }
 
     longPressCount++;
     strafpunten += 2;
     updateStrafpunten();
+    scheduleSave();
 
-    // Jouw echte hintfunctie
     geefHint(r, c);
 }
 
@@ -170,12 +218,10 @@ function renderGrid() {
             cell.dataset.col = c;
             cell.textContent = grid[r][c];
 
-            // HINT KLEUR
             if (r === 1 && hintCells[c] && grid[1][c] !== "") {
                 cell.classList.add("hint");
             }
 
-            // LONGPRESS
             let pressTimer = null;
 
             cell.onmousedown = () => {
@@ -192,11 +238,12 @@ function renderGrid() {
                 clearTimeout(pressTimer);
             };
 
-            // CLICK (swap)
             cell.onclick = () => {
                 handleCellClick(r, c);
+                scheduleSave();
+                clearMessage();
             };
-			clearMessage()
+
             row.appendChild(cell);
         }
 
@@ -209,7 +256,7 @@ function renderGrid() {
    ------------------------------------------------------------ */
 
 function handleCellClick(r, c) {
-    if (r === 1 && hintCells[c]) return; // vast = niet klikbaar
+    if (r === 1 && hintCells[c]) return;
 
     if (!selected) {
         selected = { r, c };
@@ -228,16 +275,21 @@ function swap(r1, c1, r2, c2) {
     const a = grid[r1][c1];
     const b = grid[r2][c2];
 
-    // lege cel mag niet "actief" naar een letter verplaatsen
+    if (!timerGestart) {
+        startTimerIfNeeded();
+    }
+
     if (a === "" && b !== "") return;
 
-    // hint‑cellen blijven altijd vast
     if ((r1 === 1 && hintCells[c1]) || (r2 === 1 && hintCells[c2])) return;
 
     grid[r1][c1] = b;
     grid[r2][c2] = a;
 
     renderGrid();
+    scheduleSave();
+	updateDebugPanel();
+
 }
 
 /* ------------------------------------------------------------
@@ -246,12 +298,13 @@ function swap(r1, c1, r2, c2) {
 
 function checkSolved() {
     const bottom = grid[1].join("");
-	longPressCount = 0;
-	checkEindeSpel();
-	
+
+    checkEindeSpel();
+
     if (bottom === currentWord) {
         addWordToBoard(currentWord, "green");
-		round++;
+        round++;
+        scheduleSave();
         startRonde();
     }
 }
@@ -263,21 +316,17 @@ function markCorrect() {
 
 function nieuwWoord() {
     longPressCount = 0;
-  
-        strafpunten += 5;
-        updateStrafpunten();
-
+    strafpunten += 5;
+    updateStrafpunten();
     woordIsCorrect = false;
+    scheduleSave();
     startRonde();
 }
 
-
-
-
-/* =========================
+/* ------------------------------------------------------------
    8. MESSAGE / MODAL UI
-   ========================= */
-   
+   ------------------------------------------------------------ */
+
 function showMessage(text, html = "", callback = null) {
     const textBox = document.getElementById("messageText");
     const extraBox = document.getElementById("messageExtra");
@@ -294,146 +343,120 @@ function showMessage(text, html = "", callback = null) {
     }
 }
 
-
-
 function clearMessage() {
-  showMessage(t("defaultMessage"));
+    showMessage(t("defaultMessage"));
 }
 
 function nieuwSpel() {
-	showMessage(
-	  t("confirmNewGame"),
-	  `
-		<div class="confirm-box">
-			<button id="jaBtn" class="btn btn-green">Ja</button>
-			<button id="neeBtn" class="btn btn-red">Nee</button>
-		</div>
-	  `,
-	  () => {
-		document.getElementById("jaBtn").onclick = () => {
-	
-		  buttons.forEach(b => b.classList.remove("active"));
-		  btn.classList.add("active");
+    showMessage(
+        t("confirmNewGame"),
+        `
+        <div class="confirm-box">
+            <button id="jaBtn" class="btn btn-green">Ja</button>
+            <button id="neeBtn" class="btn btn-red">Nee</button>
+        </div>
+        `,
+        () => {
+            document.getElementById("jaBtn").onclick = () => {
+                updateTopScoreDisplay();
+                startNewGame();
+                showMessage(t("defaultMessage"));
+            };
 
-		  updatetopScoreDisplay();
-		  maakGrid();
-
-		  showMessage(t("defaultMessage"));
-		};
-
-		document.getElementById("neeBtn").onclick = () => {
-		  showMessage(t("defaultMessage"));
-		};
-	  }
-	);
-
-
+            document.getElementById("neeBtn").onclick = () => {
+                showMessage(t("defaultMessage"));
+            };
+        }
+    );
 }
 
 function startNewGame() {
-	longPressCount = 0;
-    clearInterval(timerInterval);
-    timerGestart = false;
-	strafpunten = 0;
-    seconden = 0;
+    const boardEl = document.getElementById("board");
+    boardEl.innerHTML = "";
+
+    foundWords = [];
     round = 1;
-    woordIsCorrect = false;
-    clearMessage();
-    startGame();   // of hoe jouw spel start
-}
+    strafpunten = 0;
+    seconden = 0;
+    longPressCount = 0;
+    hintCells = Array(WORD_LENGTH).fill(false);
 
-function initToolbar() {
- const buttons = document.querySelectorAll("#toolbar button[data-level]");
+    timerGestart = false;
+    clearInterval(timerInterval);
+    clearInterval(minutePenaltyTimer);
+    timerInterval = null;
+    minutePenaltyTimer = null;
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const newLevel = Number(btn.dataset.level);
-      if (level === newLevel) return;
+    localStorage.removeItem("letterswap_save");
 
-document.getElementById("jaBtn").onclick = () => {
-    level = newLevel;
+    updateStrafpunten();
+    updateTimerDisplay();
+    updateTopScoreDisplay();
 
-    buttons.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    updatetopScoreDisplay();
-    maakGrid();
-
-	showMessage(t("defaultMessage"));
-};
-
-document.getElementById("neeBtn").onclick = clearMessage;
-    });
-  });
+    startRonde();
 }
 
 /*  MODAL   */
 
 document.getElementById("readmeBtn").addEventListener("click", () => {
     openModal(`
-		<h4>${t("modalInfoTitle")}</h4>
-		<div>${t("modalInfoBody")}</div>
-	`);
+        <h4>${t("modalInfoTitle")}</h4>
+        <div>${t("modalInfoBody")}</div>
+    `);
 });
 
 function openModal(contentHTML) {
-	document.getElementById("modalBody").innerHTML = contentHTML;
-	document.getElementById("modal").classList.remove("hidden");
+    document.getElementById("modalBody").innerHTML = contentHTML;
+    document.getElementById("modal").classList.remove("hidden");
 }
 
 function closeModal() {
-  document.getElementById("modal").classList.add("hidden");
+    document.getElementById("modal").classList.add("hidden");
 }
 
-
-/* =========================
-   8.1 HINT / 
-   ========================= */
+/* ------------------------------------------------------------
+   9. HINT
+   ------------------------------------------------------------ */
 
 function geefHint(r, c) {
     const letter = grid[r][c];
     if (!letter) return;
 
-    // Zoek een geschikte doelpositie voor deze letter
     let correctPos = -1;
     for (let i = 0; i < WORD_LENGTH; i++) {
         if (currentWord[i] === letter && !hintCells[i]) {
-            // deze positie is bedoeld voor deze letter en nog niet als hint vastgezet
             correctPos = i;
             break;
         }
     }
 
-    if (correctPos === -1) return; // geen bruikbare positie meer
+    if (correctPos === -1) return;
 
-    // Als de letter daar al goed staat → niets doen
     if (grid[1][correctPos] === letter) return;
 
     const existing = grid[1][correctPos];
 
-    // swap‑achtig gedrag:
     if (existing !== "") {
-        grid[r][c] = existing;   // wat daar stond, gaat terug naar de klikplek
+        grid[r][c] = existing;
     } else {
-        grid[r][c] = "";         // anders wordt de klikplek leeg
+        grid[r][c] = "";
     }
 
     grid[1][correctPos] = letter;
-
-    // Hint vastleggen
     hintCells[correctPos] = true;
 
-    strafpunten += 2;
-    updateStrafpunten();
-
     renderGrid();
+    scheduleSave();
 }
 
 /* ------------------------------------------------------------
-   9. BOARD
+   10. BOARD
    ------------------------------------------------------------ */
 
 function addWordToBoard(word, color = "green") {
+    foundWords.push({ word, color });
+    scheduleSave();
+
     const board = document.getElementById("board");
     const div = document.createElement("div");
     div.className = "board-word " + color;
@@ -441,103 +464,144 @@ function addWordToBoard(word, color = "green") {
     board.appendChild(div);
 }
 
+function renderBoard() {
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+
+    for (const item of foundWords) {
+        const div = document.createElement("div");
+        div.className = "board-word " + item.color;
+        div.textContent = item.word;
+        board.appendChild(div);
+    }
+}
 
 /* ------------------------------------------------------------
-   10. TIMER
+   11. TIMER
    ------------------------------------------------------------ */
-function startTimer() {
-  seconden = 0;
-  clearInterval(timerInterval);
 
-  timerInterval = setInterval(() => {
-    seconden++;
-    updateTimer();
-  }, 1000);
+function startMinutePenaltyTimer() {
+    if (minutePenaltyTimer) return;
+
+    minutePenaltyTimer = setInterval(() => {
+        strafpunten++;
+        updateStrafpunten();
+        scheduleSave();
+    }, 60000);
 }
 
 function startTimerIfNeeded() {
     if (timerGestart) return;
 
     timerGestart = true;
+
     timerInterval = setInterval(() => {
         seconden++;
         updateTimerDisplay();
+        scheduleSave();
     }, 1000);
+
+    startMinutePenaltyTimer();
 }
 
 function updateTimerDisplay() {
-    const min = Math.floor(seconden / 60);
-    const sec = seconden % 60;
+    const m = Math.floor(seconden / 60).toString().padStart(2, "0");
+    const s = (seconden % 60).toString().padStart(2, "0");
 
-    document.getElementById("Timer").textContent =
-        "T: " +
-        String(min).padStart(2, "0") + ":" +
-        String(sec).padStart(2, "0");
+    document.getElementById("Timer").textContent = "T: " + m + ":" + s;
+	updateDebugPanel();
+
 }
 
-/* =========================
-   11. TAAL
-   ========================= */
+/* ------------------------------------------------------------
+   12. TAAL
+   ------------------------------------------------------------ */
 
 function openTaalKeuze() {
-	showMessage(
-    t("language"),
-    `
+    showMessage(
+        t("language"),
+        `
       <div class="lang-select">
         <button data-lang="nl"><img src="images/NL.png" alt="NL"></button>
         <button data-lang="fr"><img src="images/FR.png" alt="FR"></button>
         <button data-lang="en"><img src="images/EN.png" alt="EN"></button>
         <button data-lang="de"><img src="images/DE.png" alt="DE"></button>
-      </div>    `
-  );
+      </div>
+      `
+    );
 
-  document.querySelectorAll(".lang-select button").forEach(btn => {
-    btn.onclick = async () => {
-      await switchLanguage(btn.dataset.lang);
-      clearMessage();
-    };
-  });
+    document.querySelectorAll(".lang-select button").forEach(btn => {
+        btn.onclick = async () => {
+            await switchLanguage(btn.dataset.lang);
+            clearMessage();
+        };
+    });
 }
 
 async function switchLanguage(langCode) {
-  strings.setLanguage(langCode);
+    currentLanguage = langCode;
+    i18n.setLanguage(langCode);
 
-  const img = document.querySelector("#langBtn img");
-  if (img) img.src = `images/${langCode.toUpperCase()}.png`;
+    const img = document.querySelector("#langBtn img");
+    if (img) img.src = `images/${langCode.toUpperCase()}.png`;
 
-  woordenBestand = langCode === "nl" ? "woorden.txt" : `woorden_${langCode}.txt`;
+    await laadWoorden();
 
-  await laadWoorden();
-  woordBag = new ShuffleBagCooldown(woordPool, 5);
-  renderGrid();
-  clearMessage();
-  
+    // nieuw spel in nieuwe taal
+    startNewGame();
 }
+
 /* ------------------------------------------------------------
-   12. STRAFPUNTEN / SCORE
+   13. STRAFPUNTEN / SCORE
    ------------------------------------------------------------ */
 
 function updateStrafpunten() {
-    document.getElementById("Faults").textContent =
-        "Score: " + strafpunten;
+    document.getElementById("Faults").textContent = "Strafpt'n: " + strafpunten;
+updateDebugPanel();
+
 }
 
 function loadTopScore() {
-    const saved = localStorage.getItem("10letter_topscore");
+    const saved = localStorage.getItem("letterswap_topScore");
     topScore = saved ? Number(saved) : null;
-
     updateTopScoreDisplay();
 }
 
 function saveTopScore() {
-    localStorage.setItem("10letter_topscore", topScore);
+    if (topScore === null) return;
+    localStorage.setItem("letterswap_topScore", topScore);
+}
+
+function confirmResetTopScore() {
+    showMessage(
+        "Topscore resetten?",
+        `
+        <div class="confirm-box">
+            <button id="jaBtn" class="btn btn-green">Ja</button>
+            <button id="neeBtn" class="btn btn-red">Nee</button>
+        </div>
+        `,
+        () => {
+            document.getElementById("jaBtn").onclick = () => {
+                localStorage.removeItem("letterswap_topScore");
+                topScore = null;
+                updateTopScoreDisplay();
+                showMessage(t("defaultMessage"));
+            };
+
+            document.getElementById("neeBtn").onclick = () => {
+                showMessage(t("defaultMessage"));
+            };
+        }
+    );
 }
 
 function updateTopScoreDisplay() {
-    const el = document.getElementById("Topscore");
-    if (!el) return;
+    const uiSpan = document.getElementById("Topscore");
+    if (!uiSpan) return;
 
-    el.textContent = "Topscore: " + (topScore ?? "-");
+    const value = topScore === null ? "-" : topScore;
+    uiSpan.textContent = "Topscore: " + value;
 }
 
 function updateTopScoreIfNeeded() {
@@ -549,30 +613,32 @@ function updateTopScoreIfNeeded() {
 }
 
 /* ------------------------------------------------------------
-   13. JOKER & OPLOSSING
+   14. JOKER & OPLOSSING
    ------------------------------------------------------------ */
 
 function joker() {
     strafpunten += 5;
+    longPressCount = 0;
     updateStrafpunten();
-	longPressCount = 0;
-
+    scheduleSave();
 }
+
 function toonOplossing() {
     strafpunten += 10;
     updateStrafpunten();
-	longPressCount = 0;
-	round++;
-	checkEindeSpel();
+    longPressCount = 0;
+    round++;
+    checkEindeSpel();
+
     addWordToBoard(currentWord, "red");
 
-    // FIX: zet het woord in cooldown
-    bag.cooldown.set(currentWord, bag.cooldownShuffles);
-
-    // FIX: forceer refill zodat draw() nieuwe woorden heeft
-    bag.refill();
+    if (bag && bag.cooldown) {
+        bag.cooldown.set(currentWord, bag.cooldownShuffles);
+        bag.refill();
+    }
 
     woordIsCorrect = false;
+    scheduleSave();
     startRonde();
 }
 
@@ -580,10 +646,8 @@ function toonOplossing() {
    15. EINDE SPEL
    ------------------------------------------------------------ */
 
-/*   EINDE SPEL   */
-
 function checkEindeSpel() {
-    if (round > 10) {
+    if (round > TOTAL_ROUNDS) {
         endGame();
     }
 }
@@ -594,35 +658,75 @@ function colorFullWordGreen() {
     });
 }
 
-function onWordFound(word) {
-    word.found = true;
-    highlightWord(word);
-
-    if (allWordsFound()) {
-        colorFullWordGreen();
-    }
-}
-
-document.getElementById("jokerBtn").addEventListener("click", () => {nieuwWoord();});
-
-document.getElementById("newGameBtn").addEventListener("click", nieuwSpel); 
-
-document.getElementById("solutionBtn").addEventListener("click", toonOplossing);
-
-document.getElementById("langBtn").addEventListener("click", openTaalKeuze); 
-
-document.getElementById("modalClose").addEventListener("click", closeModal);
-
-
 function endGame() {
     clearInterval(timerInterval);
+    clearInterval(minutePenaltyTimer);
+    timerInterval = null;
+    minutePenaltyTimer = null;
+    timerGestart = false;
+
     updateTopScoreIfNeeded();
     startFireworks();
 }
 
+/* ------------------------------------------------------------
+   16. SAVE / LOAD
+   ------------------------------------------------------------ */
+
+function saveGame() {
+    const data = {
+        grid,
+        currentWord,
+        round,
+        strafpunten,
+        seconden,
+        longPressCount,
+        currentLanguage,
+        hintCells,
+        foundWords,
+        topScore
+    };
+
+    localStorage.setItem("letterswap_save", JSON.stringify(data));
+}
+
+function loadGame() {
+    const saved = localStorage.getItem("letterswap_save");
+    if (!saved) return false;
+
+    const game = JSON.parse(saved);
+
+    grid = game.grid;
+    currentWord = game.currentWord;
+    round = game.round;
+    strafpunten = game.strafpunten ?? 0;
+    seconden = game.seconden ?? 0;
+    longPressCount = game.longPressCount ?? 0;
+    currentLanguage = game.currentLanguage || "nl";
+    hintCells = game.hintCells || Array(WORD_LENGTH).fill(false);
+    foundWords = game.foundWords || [];
+    if (game.topScore !== undefined && game.topScore !== null) {
+        topScore = game.topScore;
+    }
+
+    renderGrid();
+    renderBoard();
+    updateStrafpunten();
+    updateTimerDisplay();
+    updateTopScoreDisplay();
+
+    timerGestart = false;
+    clearInterval(timerInterval);
+    clearInterval(minutePenaltyTimer);
+    timerInterval = null;
+    minutePenaltyTimer = null;
+updateDebugPanel();
+
+    return true;
+}
 
 /* ------------------------------------------------------------
-   16. HIGHLIGHT HELPERS
+   17. HIGHLIGHT HELPERS
    ------------------------------------------------------------ */
 
 function highlight(r, c) {
@@ -634,15 +738,14 @@ function clearHighlights() {
     document.querySelectorAll(".cell").forEach(c => c.classList.remove("selected"));
 }
 
-/* =========================
-   18. VUURWERK 
-   ========================= */
+/* ------------------------------------------------------------
+   18. VUURWERK
+   ------------------------------------------------------------ */
 
 function startFireworks(done) {
     const canvas = document.getElementById("fireworksCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Canvas zichtbaar maken
     canvas.classList.remove("hidden");
     canvas.style.display = "block";
     canvas.style.background = "rgba(0,0,0,0.95)";
@@ -652,7 +755,6 @@ function startFireworks(done) {
     let particles = [];
     let running = true;
 
-    // --- HSL → RGBA converter (perfect werkend) ---
     function hslToRgba(h, s, l, a) {
         s /= 100;
         l /= 100;
@@ -665,7 +767,6 @@ function startFireworks(done) {
         return `rgba(${Math.round(255 * f(0))}, ${Math.round(255 * f(8))}, ${Math.round(255 * f(4))}, ${a})`;
     }
 
-    // --- Explosie maken ---
     function createExplosion() {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height * 0.7;
@@ -687,7 +788,6 @@ function startFireworks(done) {
         }
     }
 
-    // --- Animatie ---
     function update() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -708,35 +808,48 @@ function startFireworks(done) {
         if (running) {
             requestAnimationFrame(update);
         } else {
-            // Canvas verbergen
             canvas.classList.add("hidden");
             canvas.style.display = "none";
             canvas.style.background = "transparent";
 
-          if (done) done();
+            if (done) done();
         }
     }
 
-    // --- Meerdere explosies ---
     let count = 0;
     const interval = setInterval(() => {
         createExplosion();
         count++;
         if (count >= 8) {
             clearInterval(interval);
-            setTimeout(() => running = false, 2000);
+            setTimeout(() => (running = false), 2000);
         }
     }, 300);
 
     update();
 }
+
 /* ------------------------------------------------------------
    19. INIT
    ------------------------------------------------------------ */
 
-window.addEventListener("DOMContentLoaded", async () => {
- 
-    await laadWoorden();
+document.getElementById("jokerBtn").addEventListener("click", () => {
+    nieuwWoord();
+});
+document.getElementById("newGameBtn").addEventListener("click", nieuwSpel);
+document.getElementById("solutionBtn").addEventListener("click", toonOplossing);
+document.getElementById("langBtn").addEventListener("click", openTaalKeuze);
+document.getElementById("modalClose").addEventListener("click", closeModal);
+document.getElementById("Topscore").addEventListener("dblclick", confirmResetTopScore);
 
+window.addEventListener("DOMContentLoaded", async () => {
+    await laadWoorden();
+    loadTopScore();
     startGame();
+});
+
+window.addEventListener("keydown", (e) => {
+    if (e.key === "d" || e.key === "D") {
+        toggleDebug();
+    }
 });

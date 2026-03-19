@@ -5,7 +5,7 @@ const FILES_TO_CACHE = [
   "./index.html",
   "./lswap.css",
   "./lswap.js",
-  "./strings.js",
+  "./i18n.js",
   "./woorden.txt",
   "./woorden_de.txt",
   "./woorden_fr.txt",
