@@ -151,29 +151,41 @@ function kiesNieuwWoord() {
    4. START GAME / RONDES
    ------------------------------------------------------------ */
 
-function startRonde() {
-		 if (round > 10) return; 
+async function startRonde() {
+
+    if (round > 10) return;
+
     currentWord = kiesNieuwWoord();
     const solutionWord = currentWord.split("");
 
     hintCells = Array(WORD_LENGTH).fill(false);
 
+    // GRID VULLEN (maar nog niet tonen)
+    const shuffled = fisherYatesShuffle(solutionWord.slice());
     grid = [
-        fisherYatesShuffle(solutionWord.slice()),
+        shuffled,
         Array(WORD_LENGTH).fill("")
     ];
 
-    renderGrid();
-    scheduleSave();
-	updateDebugPanel();
+    const gridEl = document.getElementById("grid");
+    gridEl.classList.add("grid-hidden");
 
+    renderGrid(); // cellen zichtbaar, letters verborgen
+
+    await startLetterFlyAnimation();
+
+    gridEl.classList.remove("grid-hidden");
+
+    scheduleSave();
+    updateDebugPanel();
 }
 
-function startGame() {
+
+async function startGame() {
     const loaded = loadGame();
- 
+
     if (!loaded) {
-        round = 1;
+        round = 1;  
         strafpunten = 0;
         seconden = 0;
         timerGestart = false;
@@ -182,6 +194,8 @@ function startGame() {
         updateStrafpunten();
         updateTimerDisplay();
         updateTopScoreDisplay();
+		grid.innerHTML = "";
+
         startRonde();
     }
 }
@@ -213,12 +227,19 @@ function renderGrid() {
         row.className = "grid-row";
 
         for (let c = 0; c < WORD_LENGTH; c++) {
+
             const cell = document.createElement("div");
             cell.className = "cell";
             cell.dataset.row = r;
             cell.dataset.col = c;
-            cell.textContent = grid[r][c];
 
+            // --- NIEUW: letter in een span ---
+            const span = document.createElement("span");
+            span.className = "cell-letter";
+            span.textContent = grid[r][c] || "";
+            cell.appendChild(span);
+
+            // --- hint logica ---
             if (r === 1 && hintCells[c] && grid[1][c] !== "") {
                 cell.classList.add("hint");
             }
@@ -232,13 +253,11 @@ function renderGrid() {
             cell.onpointerdown = (e) => {
                 longPressTriggered = false;
 
-                // Start longpress timer
                 pressTimer = setTimeout(() => {
                     longPressTriggered = true;
                     onLongPress(r, c);
                 }, 600);
 
-                // Startpositie voor swipe
                 startX = e.clientX;
                 startY = e.clientY;
             };
@@ -249,7 +268,6 @@ function renderGrid() {
                 const dx = Math.abs(e.clientX - startX);
                 const dy = Math.abs(e.clientY - startY);
 
-                // Beweging → longpress annuleren
                 if (dx > 5 || dy > 5) {
                     clearTimeout(pressTimer);
                     pressTimer = null;
@@ -257,16 +275,13 @@ function renderGrid() {
             };
 
             cell.onpointerup = () => {
-                // Timer stoppen
                 if (pressTimer) {
                     clearTimeout(pressTimer);
                     pressTimer = null;
                 }
 
-                // Longpress? → niets meer doen
                 if (longPressTriggered) return;
 
-                // Normale click → swap
                 handleCellClick(r, c);
                 scheduleSave();
                 clearMessage();
@@ -278,6 +293,7 @@ function renderGrid() {
         el.appendChild(row);
     }
 }
+
 
 /* ------------------------------------------------------------
    6. SWAP LOGICA
@@ -349,6 +365,7 @@ function nieuwWoord() {
     updateStrafpunten();
     woordIsCorrect = false;
     scheduleSave();
+	
     startRonde();
 }
 
@@ -423,6 +440,7 @@ function startNewGame() {
     updateTopScoreDisplay();
 
     startRonde();
+
 }
 
 /*  MODAL   */
@@ -649,7 +667,6 @@ function updateTopScoreIfNeeded() {
 
 function joker() {
 	
-  console.log("joker() START, longPressCount =", longPressCount);
     strafpunten += 5;
     longPressCount = 0;
     updateStrafpunten();
@@ -863,12 +880,9 @@ function startFireworks(done) {
     }, 300);
 
 	nieuwSpel()
-		grid = [
-				["", "", "", "", "", "", ""],
-				["", "", "", "", "", "", ""]
-			];
+		grid.innerHTML = "";
+
 		renderGrid();	
-	
 		update();
 	
 }
@@ -899,3 +913,103 @@ window.addEventListener("keydown", (e) => {
         toggleDebug();
     }
 });
+
+
+function positionOverlay() {
+    const board = document.getElementById("board"); // jouw lettervlak
+    const rect = board.getBoundingClientRect();
+
+    const overlay = document.getElementById("letterFlyOverlay");
+    overlay.style.position = "absolute";
+    overlay.style.top = rect.top + "px";
+    overlay.style.left = rect.left + "px";
+    overlay.style.width = rect.width + "px";
+    overlay.style.height = rect.height + "px";
+}
+function randomStartPos() {
+    const board = document.getElementById("board");
+    const rect = board.getBoundingClientRect();
+
+    return {
+        x: Math.random() * rect.width,
+        y: Math.random() * rect.height
+    };
+}
+
+function getCellPos(cell) {
+    const rect = cell.getBoundingClientRect();
+    const boardRect = document.getElementById("board").getBoundingClientRect();
+
+    return {
+        x: rect.left - boardRect.left,
+        y: rect.top - boardRect.top,
+        w: rect.width,
+        h: rect.height
+    };
+}
+
+
+async function startLetterFlyAnimation() {
+    positionOverlay();
+
+    const overlay = document.getElementById("letterFlyOverlay");
+    overlay.innerHTML = "";
+
+    const cells = [...document.querySelectorAll(".cell")];
+    const topRow = cells.slice(0, 10);
+
+    const letters = topRow.map(cell => {
+        const target = getCellPos(cell);
+        const start = randomStartPos();
+
+        return {
+            letter: cell.textContent.trim(),
+            start,
+            target
+        };
+    });
+
+    const shuffled = letters.sort(() => Math.random() - 0.5);
+
+for (let i = 0; i < shuffled.length; i++) {
+    const l = shuffled[i];
+
+    const el = document.createElement("div");
+    el.className = "fly-letter";
+    el.textContent = l.letter;
+
+    // eindpositie (anker)
+    el.style.left = l.start.x + "px";
+    el.style.top = l.start.y + "px";
+
+    overlay.appendChild(el);
+
+    // STARTPOSITIE instellen (lager of hoger)
+    el.style.transform = "translate(0, 90px)"; // <— pas deze aan
+
+    // force reflow zodat de transition werkt
+    void el.offsetWidth;
+
+    // lettergrootte meten
+    const letterRect = el.getBoundingClientRect();
+
+    // exacte gecentreerde eindpositie
+    const dx = (l.target.x + l.target.w / 2) - (letterRect.width / 2) - l.start.x;
+    const dy = (l.target.y + l.target.h / 2) - (letterRect.height / 2) - l.start.y;
+
+    el.style.opacity = 1;
+    el.style.transform = `translate(${dx}px, ${dy}px)`; // eindpositie
+
+    await new Promise(res => setTimeout(res, 120));
+}
+
+
+    await new Promise(res => setTimeout(res, 600));
+    overlay.innerHTML = "";
+}
+
+
+
+
+
+
